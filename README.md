@@ -39,7 +39,7 @@ The final pipeline:
 
 ## Files
 
-* `final-submission.ipynb` — Reproducible notebook
+* `iv_surface_prediction.ipynb` — Reproducible notebook
 * `submission.csv` — Final Kaggle submission file
 * `README.md` — Project documentation
 
