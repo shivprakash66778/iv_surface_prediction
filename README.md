@@ -1,53 +1,66 @@
 # Implied Volatility Surface Prediction
 
-This project was developed for the **Finance Club IIT Roorkee Open Project 2026**. The objective was to predict missing implied volatility values in a NIFTY options dataset containing observations across multiple timestamps, strikes, and option types.
+This project was developed for the **Finance Club IIT Roorkee Open Project 2026**. The objective is to predict missing implied volatility values in a NIFTY options dataset containing observations across timestamps, strikes, and option types.
 
 ## Project Overview
 
-Implied volatility is an important metric in options markets, as it reflects the market’s expectation of future volatility. In real trading data, IV surfaces often contain missing values due to illiquidity, sparse trades, or data-quality issues. This project focuses on reconstructing those missing values using the available option chain data.
-
-## Approach
-
-I explored multiple modelling techniques, including:
-
-* Time-wise linear interpolation
-* Strike-wise interpolation
-* PCHIP interpolation
-* Curvature correction
-* Adaptive strike correction
-* SVI/SABR-inspired modelling attempts
-
-After experimentation and Kaggle leaderboard feedback, **time-wise linear interpolation** gave the most stable and reliable performance.
+Implied volatility is an important metric in options markets because it reflects the market’s expectation of future volatility. In real trading data, IV surfaces often contain missing values due to illiquidity, sparse trades, bid-ask filtering, or data-quality issues. This project focuses on reconstructing those missing values using available option chain data.
 
 ## Assumptions
 
-The dataset represents implied volatility values across timestamps and strikes. I assume that implied volatility varies smoothly over nearby timestamps and nearby strikes. Therefore, interpolation-based methods are suitable for reconstructing missing values. The original observed values are never modified.
+The dataset represents implied volatility values across timestamps and strikes. I assume that IV varies smoothly across nearby strikes and also evolves gradually over time. Calls and puts are modelled separately because their volatility smiles can have different shapes. Original observed values are preserved and only missing entries are predicted.
 
-## Final Method
+## Preprocessing
 
-The final pipeline:
+The dataset is loaded from the Kaggle input directory. Option columns are identified using their suffixes:
 
-1. Loads the given dataset.
-2. Identifies missing implied volatility values.
-3. Applies time-wise linear interpolation across option columns.
-4. Generates a fully filled dataset.
-5. Converts the predictions into Kaggle’s required `id,value` submission format.
+- `CE` for call options
+- `PE` for put options
 
-## Tech Stack
+Strike prices are extracted from option column names, and log-moneyness is computed using strike and underlying price. Missing values are detected before modelling.
 
-* Python
-* Pandas
-* NumPy
-* SciPy
-* Kaggle Notebook
+## Feature Engineering
 
-## Files
+The final approach uses:
 
-* `iv_surface_prediction.ipynb` — Reproducible notebook
-* `submission.csv` — Final Kaggle submission file
-* `README.md` — Project documentation
+- Strike price extracted from option names
+- Option type separation: CE and PE
+- Log-moneyness as the cross-sectional smile variable
+- Timestamp ordering for past-only residual adjustment
 
-## Key Learnings
+## Methods Explored
 
-This project helped me understand implied volatility surfaces, missing value prediction, financial time-series interpolation, model validation, and reproducible Kaggle submission workflows.
+Several approaches were tested during development:
 
+- Time-wise linear interpolation
+- Strike-wise linear interpolation
+- PCHIP interpolation
+- Curvature correction
+- Adaptive strike correction
+- SVI/SABR-inspired modelling attempts
+- Local weighted quadratic smile fitting
+- Past-only residual adjustment
+
+## Final Modelling Approach
+
+The final model reconstructs the IV surface in two stages:
+
+1. **Cross-sectional smile fitting**  
+   For each timestamp, call and put options are fitted separately across log-moneyness. Interior missing strikes are estimated using a local weighted quadratic fit, while edge missing values use safer linear extrapolation.
+
+2. **Causal residual adjustment**  
+   After the smile fit, residual behaviour is tracked per option column using only past available observations. This helps correct persistent contract-level bias without using future information.
+
+This approach combines financial intuition from volatility smile structure with a time-aware correction step while avoiding look-ahead bias.
+
+## Validation Approach
+
+Since the true missing values are hidden, local validation was performed by masking known IV values and comparing predictions using Mean Squared Error. Both random hold-out and later-period hold-out validation were used to check reconstruction quality and reduce the risk of overfitting to one missingness pattern.
+
+## Prediction and Submission Generation
+
+After filling missing values, the filled dataset is compared with the original dataset. Only originally missing positions are extracted and converted into Kaggle’s required format:
+
+```text
+id,value
+datetime||option_column,predicted_iv
