@@ -19,6 +19,10 @@ I explored multiple modelling techniques, including:
 
 After experimentation and Kaggle leaderboard feedback, **time-wise linear interpolation** gave the most stable and reliable performance.
 
+## Assumptions
+
+The dataset represents implied volatility values across timestamps and strikes. I assume that implied volatility varies smoothly over nearby timestamps and nearby strikes. Therefore, interpolation-based methods are suitable for reconstructing missing values. The original observed values are never modified.
+
 ## Final Method
 
 The final pipeline:
